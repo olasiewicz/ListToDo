@@ -11,11 +11,10 @@ import UIKit
 class TableViewController: UITableViewController {
     
     var array = ["hej", "by eggs", "hello"]
-    var row = IndexPath()
+    
+    let defaults = UserDefaults.standard
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        
-        row = indexPath
         
         let cell = tableView.dequeueReusableCell(withIdentifier: "toDoCell", for: indexPath)
         
@@ -32,7 +31,13 @@ class TableViewController: UITableViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
+        
+        
+        if let item  = defaults.array(forKey: "arrayTodo") as? [String] {
+            array = item
+        }
+        
+        
     }
 
 
@@ -65,6 +70,8 @@ class TableViewController: UITableViewController {
             //what will happen when user click add button on UIAlert
             
             self.array.append(textFromTextField.text!)
+            self.defaults.set(self.array, forKey: "arrayTodo")
+            
             self.tableView.reloadData()
             
             
