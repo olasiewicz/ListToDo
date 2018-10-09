@@ -12,31 +12,16 @@ class TableViewController: UITableViewController {
     
     var array = [Item]()
     
-    let defaults = UserDefaults.standard
+    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        let newItem = Item()
-        newItem.title = "Kup jajka"
-        array.append(newItem)
+        loadData()
         
-        let newItem1 = Item()
-        newItem1.title = "Zadzwon"
-        array.append(newItem1)
-        
-        let newItem2 = Item()
-        newItem2.title = "napraw"
-        array.append(newItem2)
-        
-        let newItem3 = Item()
-        newItem3.title = "Ugotuj"
-        array.append(newItem3)
-        
-        
-        if let savedArray  = defaults.array(forKey: "ToDoList") as? [Item] {
-            array = savedArray
-        }
+//        if let savedArray  = defaults.array(forKey: "ToDoList") as? [Item] {
+//            array = savedArray
+//        }
         
         
     }
@@ -55,12 +40,13 @@ class TableViewController: UITableViewController {
         
         cell.accessoryType = item.isChecked ? .checkmark : .none
         
-        
-        if item.isChecked {
-            cell.accessoryType = .checkmark
-        } else {
-            cell.accessoryType = .none
-        }
+        //tableView.reloadData()
+//
+//        if item.isChecked {
+//            cell.accessoryType = .checkmark
+//        } else {
+//            cell.accessoryType = .none
+//        }
         
         return cell
         
@@ -92,6 +78,8 @@ class TableViewController: UITableViewController {
         
         tableView.deselectRow(at: indexPath, animated: true)
         
+        saveData()
+        
     }
     
     
@@ -118,13 +106,8 @@ class TableViewController: UITableViewController {
             
             self.array.append(item)
         
-            
-            
-            self.tableView.reloadData()
-            
-            
-            
-            
+           // self.defaults.set(self.array, forKey: "ToDoList")
+            self.saveData()
         }
         
         alert.addTextField { (alertTextField) in
@@ -139,6 +122,34 @@ class TableViewController: UITableViewController {
         
         
     }
+    
+    func saveData() {
+        
+        let encoder = PropertyListEncoder()
+        
+        do {
+            let data = try encoder.encode(array)
+            try data.write(to: dataFilePath!)
+        } catch {
+            print("Error codding item array, \(error)")
+        }
+        self.tableView.reloadData()
+        
+    }
+    
+    func loadData() {
+       if let data = try? Data(contentsOf: dataFilePath!) {
+            let decoder = PropertyListDecoder()
+            
+            do {
+            array = try decoder.decode([Item].self, from: data)
+                
+            } catch {
+                print("Error decoding item array, \(error)")
+            }
+        }
+    }
+    
     
 }
 
