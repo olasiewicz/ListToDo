@@ -7,23 +7,30 @@
 //
 
 import UIKit
+import CoreData
+
 
 class TableViewController: UITableViewController {
     
+    
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    
     var array = [Item]()
     
-    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+    //code in didSet when selectedCategory has value
+    var selectedCategory : Category? {
+        didSet{
+            loadData()
+        }
+    }
+    
+    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        
-        loadData()
-        
-//        if let savedArray  = defaults.array(forKey: "ToDoList") as? [Item] {
-//            array = savedArray
-//        }
-        
-        
+       // loadData()
+        print(dataFilePath)
+    
     }
     
     //********************************************************
@@ -39,14 +46,6 @@ class TableViewController: UITableViewController {
         cell.textLabel?.text = item.title
         
         cell.accessoryType = item.isChecked ? .checkmark : .none
-        
-        //tableView.reloadData()
-//
-//        if item.isChecked {
-//            cell.accessoryType = .checkmark
-//        } else {
-//            cell.accessoryType = .none
-//        }
         
         return cell
         
@@ -73,12 +72,17 @@ class TableViewController: UITableViewController {
         
         //print(array[indexPath.row])
         
+        array[indexPath.row].setValue("Completed", forKey: "title")
         
-        array[indexPath.row].isChecked = !array[indexPath.row].isChecked
+        //array[indexPath.row].isChecked = !array[indexPath.row].isChecked
+        
+        context.delete(array[indexPath.row])
+        array.remove(at: indexPath.row)
         
         tableView.deselectRow(at: indexPath, animated: true)
         
         saveData()
+        
         
     }
     
@@ -101,10 +105,13 @@ class TableViewController: UITableViewController {
         let action = UIAlertAction(title: "Add item", style: .default) { (akcja) in
             //what will happen when user click add button on UIAlert
             
-            let item = Item()
-            item.title = textFromTextField.text!
+            let newItem = Item(context: self.context)
             
-            self.array.append(item)
+            newItem.title = textFromTextField.text!
+            newItem.isChecked = false
+            newItem.parentCategory = self.selectedCategory
+            
+            self.array.append(newItem)
         
            // self.defaults.set(self.array, forKey: "ToDoList")
             self.saveData()
@@ -125,31 +132,73 @@ class TableViewController: UITableViewController {
     
     func saveData() {
         
-        let encoder = PropertyListEncoder()
-        
+       
         do {
-            let data = try encoder.encode(array)
-            try data.write(to: dataFilePath!)
+          try context.save()
         } catch {
-            print("Error codding item array, \(error)")
+          print("Error saving context, \(error)")
         }
         self.tableView.reloadData()
         
     }
     
-    func loadData() {
-       if let data = try? Data(contentsOf: dataFilePath!) {
-            let decoder = PropertyListDecoder()
-            
-            do {
-            array = try decoder.decode([Item].self, from: data)
-                
-            } catch {
-                print("Error decoding item array, \(error)")
-            }
+    
+    
+    
+    //with - external parameter
+    // request - internal parameter
+    //with default value
+    func loadData(with request: NSFetchRequest<Item> = Item.fetchRequest(), predicate: NSPredicate? = nil) {
+        
+        
+        let categoryPredicate = NSPredicate(format: "parentCategory.name MATCHES %@", (selectedCategory!.name)!)
+        
+        if let addisionalPredicate = predicate {
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [ categoryPredicate, addisionalPredicate])
+        } else {
+            request.predicate = categoryPredicate
         }
+        
+        // polaczenie 2 query
+//        let compoundPredicate = NSCompoundPredicate(andPredicateWithSubpredicates: [ categoryPredicate, predicate!])
+
+        
+        do {
+            array = try context.fetch(request)
+        } catch {
+            print("Error fetching data from context \(error)")
+        }
+        
+        tableView.reloadData()
     }
-    
-    
 }
 
+extension TableViewController: UISearchBarDelegate {
+   
+    //MARK: - Search bar methods
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        
+        let request : NSFetchRequest<Item> = Item.fetchRequest()
+        
+        //query SQL
+        let searchPredicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+        
+        loadData(with: request, predicate: searchPredicate)
+        
+    }
+    
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        
+        if searchBar.text?.count == 0 {
+            loadData()
+            
+            DispatchQueue.main.async {
+                searchBar.resignFirstResponder()
+            }
+            
+        }
+       
+    }
+    
+}
